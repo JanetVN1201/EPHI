@@ -1,12 +1,12 @@
 ---
-title: "Advancing public health and data science using INLA - Day 2"
-author: "Janet van Niekerk (janet.vanNiekerk@kaust.edu.sa)"
+title: "Public health with INLA - Day 3"
+author: "Janet van Niekerk (janet.vanNiekerk@kaust.edu.sa/janet.vanNiekerk@up.ac.za)"
 output: html_document
-date: "May 2024"
+date: "October 2025"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "/Users/vanniej/Documents/GitHub/INLA-CDC_2023")
+knitr::opts_knit$set(root.dir = "/Users/vanniej/Documents/GitHub/EPHI")
 
 library("INLA")
 library("DiagrammeR")
@@ -75,11 +75,8 @@ plot(nc.adj, coords = nc.sids$geometry,  add = TRUE, col = "blue")
 nc.sids$CNTY_ID2 <- 1:(length(nc.sids$CNTY_ID))
 
 #Fit the spatial model
-result3_sids <- inla(SID74 ~ nwp_hat74 + f(CNTY_ID2, model = "besagproper", graph = B.nc), 
-                     data = as.data.frame(nc.sids), 
-                     family = "poisson",
-                     control.predictor = list(compute = TRUE),
-                     E = E74)
+
+
 ```
 The posterior summary is
 ```{r Example 1.e}
@@ -104,6 +101,7 @@ points(nc.sids$E74*result3_sids$summary.fitted.values[,1], col = "purple", pch =
 ```
 When we compare the fit between models we can look at the marginal log-likelihoods, DIC or WAIC.
 ```{r Example 1.h}
+#From Day 1
 result1_sids <- inla(SID74 ~ nwp_hat74, data = nc.sids, 
                      family = "poisson",
                      control.compute = list(dic = TRUE, waic = TRUE),
@@ -117,12 +115,7 @@ result2_sids <- inla(SID74 ~ nwp_hat74 + f(CNTY_ID2, model = "iid"),
                      control.predictor = list(compute = TRUE),
                      E = E74)
 
-result3_sids <- inla(SID74 ~ nwp_hat74 + f(CNTY_ID2, model = "besagproper", graph = B.nc), 
-                     data = as.data.frame(nc.sids), 
-                     family = "poisson",
-                     control.compute = list(dic = TRUE, waic = TRUE),
-                     control.predictor = list(compute = TRUE),
-                     E = E74)
+
 
 print(matrix(rbind(cbind(result1_sids$mlik[1], result1_sids$dic[1], result1_sids$waic[1]),
             cbind(result2_sids$mlik[1], result2_sids$dic[1], result2_sids$waic[1]),
@@ -158,12 +151,7 @@ inla.doc("bym2")
 Let's revisit the NC SIDS dataset example.  
 Now we add a BYM effect for the different counties,
 ```{r Example 2.a}
-result4_sids <- inla(SID74 ~ nwp_hat74 + f(CNTY_ID2, model = "bym2", graph = B.nc), 
-                     data = as.data.frame(nc.sids), 
-                     family = "poisson",
-                     control.compute = list(dic = TRUE, waic = TRUE),
-                     control.predictor = list(compute = TRUE),
-                     E = E74)
+
 ```
 The posterior summary is
 ```{r Example 2.b}
