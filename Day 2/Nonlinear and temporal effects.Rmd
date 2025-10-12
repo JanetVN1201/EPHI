@@ -1,5 +1,5 @@
 ---
-title: "Public Health with INLA - Day 1"
+title: "Public Health with INLA - Day 2"
 author: "Janet van Niekerk  (janet.vanNiekerk@kaust.edu.sa/janet.vanNiekerk@up.ac.za)"
 date: "October 2025"
 output: html_document
@@ -118,7 +118,74 @@ Some vignettes:
 ```{r eval = F}
 browseVignettes(package = "INLA")
 ```
-## Example 1 - Binary regression
+## Example 1 - Temporal and spline models
+We use the AirPassengers dataset that contains the monthly totals of international airline passengers from 1949 to 1960. 
+```{r Example 3.a}
+data(AirPassengers)
+airp.data <- data.frame(airp = as.vector(AirPassengers),
+                        month = as.factor(rep(1:12, 12)), 
+                        year = as.factor(rep(1949:1960, each = 12)),
+                        ID = 1:length(AirPassengers))
+summary(airp.data)
+
+plot(airp.data$airp, type = "l")
+plot(log(airp.data$airp), type = "l", xlab = "Year", ylab = "Log of the count of passengers")
+airp.data$l_airp <- log(airp.data$airp)
+```
+Since the response evolves over time and is clearly associated with time, we will fit various temporal models for illustration. Obviously, the seasonal model is the best choice.
+```{r Example 3.b}
+inla.doc("ar1")
+
+summary(airp.ar1)
+plot(log(airp.data$airp), type = "l", xlab = "Year", ylab = "Log of the count of passengers")
+lines(airp.ar1$summary.fitted.values$mean , col = "blue")
+
+inla.doc("seasonal")
+
+
+plot(log(airp.data$airp), type = "l", xlab = "Year", ylab = "Log of the count of passengers
+     ")
+lines(airp.seasonal$summary.fitted.values$mean , col = "red")
+
+
+inla.doc("rw")
+
+
+
+plot(log(airp.data$airp), type = "l", xlab = "Year", ylab = "Log of the count of passengers
+     ")
+lines(airp.rw1$summary.fitted.values$mean , col = "purple")
+lines(airp.rw2$summary.fitted.values$mean , col = "orange", lwd = 2)
+```
+Now let us consider the fit of all the models.
+```{r Example 3.f}
+plot(log(airp.data$airp), type = "l", xlab = "Year", ylab = "Log of the count of passengers
+     ")
+lines(airp.ar1$summary.fitted.values$mean, col = "blue")
+lines(airp.seasonal$summary.fitted.values$mean, col = "red")
+lines(airp.rw1$summary.fitted.values$mean, col = "purple")
+lines(airp.rw2$summary.fitted.values$mean, col = "orange")
+```
+
+##Random walk models for nonlinear effects
+```{r}
+x <- seq(-10,10, by = 0.01)
+y = x^2
+
+y <- rnorm(n = length(x), x^2, sd = 10)
+
+plot(x, y)
+
+model_s <- inla(formula = y ~ -1 + f(inla.group(x, n = 100), model = "rw2", scale.model = TRUE, constr = F), data = data.frame(x=x, y=y))
+
+summary(model_s)
+plot(x, y, type= "l")
+lines(model_s$summary.random$`inla.group(x, n = 100)`$ID,
+    model_s$summary.random$`inla.group(x, n = 100)`$mean, col = "blue", lwd = 2)
+
+```
+
+## Example 2 - Binary regression (revisited)
 Consider a dichotomous outcome (the outcome variable $y$ can be either $1$ or $0$). Suppose we have covariates $\pmb z$ that we want to regress on the outcome variable $y$. Since the support of the outcome variable is not the real line, we cannot assume a Gaussian distribution for the outcome variable like in general linear models, instead we need a generalized linear model formulated specifically for dichotomous outcomes. Two such models that are popular in practice are logistic regression models and probit models. The logistic regression model links the covariates to the outcome variable through a *logit* link function such that
 \begin{equation}
 P(Y=1) = \frac{\exp(\eta)}{1+\exp(\eta)}
@@ -165,8 +232,9 @@ where
 \end{equation} 
 ```{r Example 1.d}
 #INLA model
-
-
+model3.1 <- inla(formula = status ~ 1 + age + sex + year + thickness + ulcer,
+                 family = "binomial",
+                 data = melanoma)
 ```
 We can view a summary of the results from the model, available in the INLA object *model3.1*. 
 ```{r Example 1.e}
@@ -204,13 +272,25 @@ ggarrange(pAge, pSex, pYear, pThickness, pUlcer,
 
 We can also calculate posterior inference for the odds ratio's:
 ```{r Ex1 OR}
+OR_age <- inla.tmarginal(function(x) exp(x),
+                        model3.1$marginals.fixed$age)
+plot(OR_age, type = "l")
+inla.zmarginal(OR_age)
+
+OR_ulcer <- inla.tmarginal(function(x) exp(x),
+                      model3.1$marginals.fixed$ulcer) 
+plot(OR_ulcer, type = "l")
+inla.zmarginal(OR_ulcer)
+
+OR_year <- inla.tmarginal(function(x) exp(x),
+                      model3.1$marginals.fixed$year ) 
+plot(OR_year, type = "l")
+inla.zmarginal(OR_year)
 
 
 ```
 
-
-
-## Example 2 - GLZ 
+## Example 3 - GLZ with random effects
 In this example we use the North Carolina Sudden Infant Death Syndrome dataset.
 ```{r Example 2.a}
 data(nc.sids)
@@ -231,8 +311,10 @@ nc.sids$nwp_hat74 <- nc.sids$NWBIR74 / nc.sids$BIR74
 ```
 Now we can fit the Poisson regression model, 
 ```{r Example 2.d}
-
-
+result1_sids <- inla(formula = SID74 ~ nwp_hat74, family = "poisson",
+                     E = E74,
+                     data = nc.sids,
+control.predictor = list(compute = TRUE))
 ```
 The posterior summaries of this model is
 ```{r Example 2.e}
@@ -245,9 +327,12 @@ points(nc.sids$E74*result1_sids$summary.fitted.values$mean , col = "blue", pch =
 ```
 When we look at the data we see that the observations are form different counties and from a public health viewpoint this can provide interesting insight. We add a random intercept for each county to the Poisson regression model, so that we know have a mixed effects model.
 ```{r Example 2.g}
-
-
-
+result2_sids <- inla(formula = SID74 ~ nwp_hat74 + f(CNTY.ID, model = "iid", hyper = list(theta = list(param = c(2, 2), prior = "loggamma"))),
+                     family = "poisson",
+                     E = E74,
+                     data = nc.sids,
+control.predictor = list(compute = TRUE))
+summary(result2_sids)
 plot(seq(0, 10, by = 0.1),
      dgamma(seq(0, 10, by = 0.1),
             shape = 2,
@@ -276,8 +361,12 @@ result1_sids <- inla(formula = SID74 ~ nwp_hat74, family = "poisson",
 control.predictor = list(compute = TRUE),
 control.compute   = list(dic = TRUE, waic = TRUE))
 
-
-
+result2_sids <- inla(formula = SID74 ~ nwp_hat74 + f(CNTY.ID, model = "iid"),
+                     family = "poisson",
+                     E = E74,
+                     data = nc.sids,
+control.predictor = list(compute = TRUE),
+control.compute   = list(dic = TRUE, waic = TRUE))
 
 print(matrix(rbind(cbind(result1_sids$mlik[1], 
                          result1_sids$dic[1],
@@ -290,4 +379,8 @@ print(matrix(rbind(cbind(result1_sids$mlik[1],
                             c("Marginal log-likelihood", "DIC", "WAIC")
                             )))
 ```
-We can also do cross-validation as a means of measuring prediction performance (more on Day 3).
+
+
+
+
+  
