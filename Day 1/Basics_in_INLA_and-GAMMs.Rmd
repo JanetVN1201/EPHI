@@ -267,7 +267,7 @@ plot(nc.sids$SID74)
 points(nc.sids$E74*result1_sids$summary.fitted.values$mean , col = "blue", pch = 10)
 points(nc.sids$E74*result2_sids$summary.fitted.values$mean , col = "red", pch = 19, cex = 0.5)
 ```
-Adding a random intercept adds an independent effect, although the counties are probably not independent in terms of socio-economic diversity. So we should rather include a structured random effect such that some "intercepts" are correlated with each other, conveying the dependence in space (Day 2 material)
+Adding a random intercept adds an independent effect, although the counties are probably not independent in terms of socio-economic diversity. So we should rather include a structured random effect such that some "intercepts" are correlated with each other, conveying the dependence in space (Day 3 material)
 When we compare the fit between models we can look at the marginal log-likelihoods, DIC or WAIC.
 ```{r Example 2.o}
 result1_sids <- inla(formula = SID74 ~ nwp_hat74, family = "poisson",
