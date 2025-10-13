@@ -15,13 +15,25 @@ libs = c("DiagrammeR","car","ggpubr","spdep","RColorBrewer",
          "faraway","lme4","boot","sf","coda","spBayesSurv",
          "BayesX", "R2BayesX", "fields", "R.rsp", "devtools",
          "rnaturalearth", "leaflet", "remotes", "hydroGOF",
-         "INLAspacetime", "ggthemes")
+         "INLAspacetime", "ggthemes", "graphics",
+        "grDevices",
+         "fmesher",
+         "lifecycle",
+         "methods",
+         "parallel",
+         "rlang",
+         "splines",
+         "stats",
+         "utils",
+         "withr",
+         "MatrixModels")
+         
 
 ix <- which(!sapply(libs, require, char = TRUE))
 if (length(ix) > 0) {install.packages(libs[ix], repos = "https://cloud.r-project.org/")
   sapply(libs[ix], require, char = TRUE)}
 
-install.packages("https://cran.rstudio.com/bin/macosx/big-sur-x86_64/contrib/4.4/minqa_1.2.7.tgz")
+#install.packages("https://cran.rstudio.com/bin/macosx/big-sur-x86_64/contrib/4.4/minqa_1.2.7.tgz")
 devtools::install_github('DenisRustand/INLAjoint', build_vignettes = TRUE)
-devtools::install_github("esmail-abdulfattah/fbesag")
+#devtools::install_github("esmail-abdulfattah/fbesag")
 remotes::install_github("inlabru-org/inlabru", ref = "devel")
