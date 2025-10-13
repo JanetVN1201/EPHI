@@ -118,7 +118,7 @@ Some vignettes:
 ```{r eval = F}
 browseVignettes(package = "INLA")
 ```
-## Example 1 - Binary regression
+## Example 1 - Binary\Logistic regression
 Consider a dichotomous outcome (the outcome variable $y$ can be either $1$ or $0$). Suppose we have covariates $\pmb z$ that we want to regress on the outcome variable $y$. Since the support of the outcome variable is not the real line, we cannot assume a Gaussian distribution for the outcome variable like in general linear models, instead we need a generalized linear model formulated specifically for dichotomous outcomes. Two such models that are popular in practice are logistic regression models and probit models. The logistic regression model links the covariates to the outcome variable through a *logit* link function such that
 \begin{equation}
 P(Y=1) = \frac{\exp(\eta)}{1+\exp(\eta)}
@@ -150,11 +150,18 @@ ggplot(melanoma, aes(x = status)) + geom_bar() +
 
 We see that `r prop_died*100` $\%$ died from malignant melanoma during the study period. The covariates we consider are *age, sex, year*(year of surgery), *thickness, ulcer*(if the removed tumor were ulcerated, believed to be an important prognostic factor). For interpretibility, we scale the continuous covariates to have a zero mean and unit variance, and we scale *year* to be the number of years since the first surgery,.
 ```{r Example 1.c}
+#Baseline characteristics
+mean(melanoma$age)
+mean(melanoma$thickness)
+min(melanoma$year)
+
 #Scale the continuous covariates for the fixed effects
 melanoma$age = scale(melanoma$age)
 melanoma$thickness = scale(melanoma$thickness)
 melanoma$year = melanoma$year - min(melanoma$year)
 ```
+Baseline patient - Patient with average age, with a tumor thickness equal to the average thickness and who had the removal surgery in the earliest year, have sex = 0 and ulcer = 0.
+
 Now we are ready to fit the logistic regression model 
 \begin{equation}
 P(status=1) = \frac{\exp(\eta)}{1+\exp(\eta)}
@@ -165,7 +172,9 @@ where
 \end{equation} 
 ```{r Example 1.d}
 #INLA model
-
+model3.1 <- inla(formula = status ~ 1 + age + sex + year + thickness + ulcer,
+                 family = "binomial",
+                 data = melanoma)
 
 ```
 We can view a summary of the results from the model, available in the INLA object *model3.1*. 
