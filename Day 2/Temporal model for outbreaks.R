@@ -65,13 +65,6 @@ ggplot(year_trend, aes(x = Year, y = Mean)) +
        x = "Year", y = "Posterior Mean (RW1 effect)") +
   theme_minimal()
 
-# --- Posterior predictive check ---
-plot(res$summary.fitted.values$mean, df$outbreaks,
-     xlab = "Fitted values", ylab = "Observed",
-     main = "Observed vs Fitted Outbreak Counts (INLA)")
-abline(0, 1, col = "red", lwd = 2)
-
-
 #Ethiopia specifically
 
 eth_out <- outbreaks %>% filter(Country == "Ethiopia")
