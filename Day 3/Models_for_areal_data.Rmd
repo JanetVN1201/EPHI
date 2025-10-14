@@ -276,7 +276,7 @@ y_{i 2}|\lambda_{i2} &\sim& \text { Poisson }\left(E_{i 2} \lambda_{i 2}\right) 
 \end{eqnarray*}
 ```{r pre-work}
 # read data 
-merg.data <- readRDS("Data/MAP_data.RDS")
+merg.data <- readRDS("MAP_data.RDS")
 
 # The map 
 map <- ne_countries(returnclass = "sf")
