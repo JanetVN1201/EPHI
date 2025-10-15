@@ -11,6 +11,8 @@ if(!require(here))
   install.packages("here")
 if(!require(openxlsx))
   install.packages("openxlsx")
+if(!require(readxl))
+  install.packages("readxl")
 knitr::opts_chunk$set(
   echo = TRUE, 
   root.dir = here::here(),
@@ -84,8 +86,8 @@ if(!file.exists("eth23pop.xlsx"))
     )
 
 ## read the files
-pop23a2 <- read.xlsx("eth23pop.xlsx", sheet = 4)
-pop23a3 <- read.xlsx("eth23pop.xlsx", sheet = 5)
+pop23a2 <- read_excel("eth23pop.xlsx", sheet = 4)
+pop23a3 <- read_excel("eth23pop.xlsx", sheet = 5)
 
 dim(pop23a2)
 
@@ -191,8 +193,8 @@ if(!file.exists("sam2022.xlsx"))
         url = "https://data.humdata.org/dataset/05f59abe-7c04-4d00-992b-90aee45d403b/resource/410db049-4f14-4858-8419-f0074fe4f850/download/sam-admission-jan-to-october-2022.xlsx", 
         destfile = "sam2022.xlsx"
     )
-sam1 <- read.xlsx("sam2022.xlsx")
-sam3 <- read.xlsx("sam2022.xlsx", sheet = 2)
+sam1 <- read_excel("sam2022.xlsx")
+sam3 <- read_excel("sam2022.xlsx", sheet = 2)
 ```
 
 Aggregate SAM per administrative level.
