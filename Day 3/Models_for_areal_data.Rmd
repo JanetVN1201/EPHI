@@ -47,7 +47,7 @@ data(nc.sids)
 head(nc.sids)
 hist(nc.sids$SID74)
 summary(nc.sids)
-nc.sids <- st_read(system.file("shapes/sids.shp", package="spData"))
+nc.sids <- st_read(system.file("shapes/sids.gpkg", package = "spData")[1], quiet = T)
 
 ```
 We see that the number of deaths is a count variable and therefore propose a Poisson regression model, i.e. 
@@ -68,8 +68,8 @@ Adding a random intercept adds an independent effect, although the counties are 
 nc.adj <- poly2nb(nc.sids)
 B.nc <- nb2mat(nc.adj, style = "B")
 
-plot(nc.sids$geometry, border="grey")
-plot(nc.adj, coords = nc.sids$geometry,  add = TRUE, col = "blue")
+plot(nc.sids$geom)
+plot(nc.adj, coords = nc.sids$geom,  add = TRUE, col = "blue", cex=0.1)
 
 #Add covariate to spatial dataset    
 nc.sids$CNTY_ID2 <- 1:(length(nc.sids$CNTY_ID))
@@ -276,7 +276,7 @@ y_{i 2}|\lambda_{i2} &\sim& \text { Poisson }\left(E_{i 2} \lambda_{i 2}\right) 
 \end{eqnarray*}
 ```{r pre-work}
 # read data 
-merg.data <- readRDS("MAP_data.RDS")
+merg.data <- readRDS("~/Documents/GitHub/EPHI/Day 3/MAP_data.RDS")
 
 # The map 
 map <- ne_countries(returnclass = "sf")
@@ -390,7 +390,7 @@ d = data.frame(yy, m, ID, ID_copy, b1, b2)
 
 formula = yy ~ -1 + m + offset(log(E1))+ offset(log(E2))+
   f(ID, model = "besag2", graph=g, scale.model = T)+
-  f(ID_copy, copy="ID", hyper = list(beta = list(fixed = TRUE)))+
+  f(ID_copy, copy="ID", hyper = list(beta = list(fixed = F)))+
   f(b1 , model = "bym2", graph=g, scale.model=TRUE)+
   f(b2, model = "bym2", graph=g, scale.model=TRUE)
 
