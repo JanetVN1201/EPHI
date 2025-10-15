@@ -1,0 +1,280 @@
+---
+title: "Ethiopia data"
+author: "Elias"
+date: "2025-10-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+options(timeout = 1e5)
+if(!require(here))
+  install.packages("here")
+if(!require(openxlsx))
+  install.packages("openxlsx")
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  root.dir = here::here(),
+  fig.width = 16, fig.height = 10
+  )
+library(sf)
+library(sp)
+library(ggplot2)
+library(INLAspacetime)
+library(openxlsx)
+library(ggpubr)
+```
+
+# Introduction
+
+This will get and show some data o map 
+by administrative boundaries for Ethiopia.
+
+The working directory is `r getwd()`.
+
+## Maps
+
+Getting the boundary maps, for administrative levels.
+
+```{r getMaps}
+
+## download the shapefile
+##  a shapefile is a set of files to store a map
+
+if(!file.exists("eth_shp.zip"))
+    download.file(
+        url = "https://data.humdata.org/dataset/cb58fa1f-687d-4cac-81a7-655ab1efb2d0/resource/63c4a9af-53a7-455b-a4d2-adcc22b48d28/download/eth_adm_csa_bofedb_2021_shp.zip",
+        destfile = "eth_shp.zip")
+
+## unzip
+if(!dir.exists("map"))
+    unzip(zipfile = "eth_shp.zip",
+          exdir   = "map")
+
+```
+
+Read the data into R environment. 
+
+```{r readMaps}
+map1 <- st_read("map/eth_admbnda_adm1_csa_bofedb_2021.shp")
+map2 <- st_read("map/eth_admbnda_adm2_csa_bofedb_2021.shp")
+map3 <- st_read("map/eth_admbnda_adm3_csa_bofedb_2021.shp")
+```
+
+There are different ways to visualize a map in R.
+Visualize the maps using `ggplot2`.
+
+```{r vizMaps, fig.width=17, fig.height=15}
+gg0 <- ggplot() + theme_minimal()
+ggarrange(
+  gg0 + geom_sf(aes(fill = ADM1_EN), data = map1),
+  gg0 + geom_sf(aes(fill = ADM1_EN), data = map2),
+  gg0 + geom_sf(aes(fill = ADM1_EN), data = map3)
+)
+```
+
+## Population
+
+Getting the population per adminstrative boundaries. 
+
+```{r getPop} 
+if(!file.exists("eth23pop.xlsx"))
+    download.file(
+        url = "https://data.humdata.org/dataset/3d9b037f-5112-4afd-92a7-190a9082bd80/resource/f82b20f1-8a76-46e9-ba9a-29e531f7af3c/download/eth_admpop_2023.xlsx",
+        destfile = "eth23pop.xlsx"
+    )
+
+## read the files
+pop23a2 <- read.xlsx("eth23pop.xlsx", sheet = 4)
+pop23a3 <- read.xlsx("eth23pop.xlsx", sheet = 5)
+
+dim(pop23a2)
+
+## show first 2 lines
+head(pop23a2, 2)
+
+## show last 2 lines
+tail(pop23a2, 2)
+
+dim(pop23a3)
+
+## show first 2 lines
+head(pop23a3, 2)
+
+## show last 2 lines
+tail(pop23a3, 2)
+```
+
+Matching the population data with the map 
+and adding population in the map.
+
+```{r popMap}
+i2pop <- pmatch(map2$ADM2_PCODE, pop23a2$admin2Pcode)
+i3pop <- pmatch(map3$ADM3_PCODE, pop23a3$admin3Pcode)
+
+map2$Population <- round(pop23a2$Total[i2pop])
+map2$Pop0to4 <- round(pop23a2$T_00_04[i2pop])
+
+map3$Population <- round(pop23a3$Total[i3pop])
+map3$Pop0to4 <- round(pop23a3$T_00_04[i3pop])
+```
+
+Map of the 0-4 years old population.
+
+```{r chProp, fig.width = 16, fig.height = 10}
+ggarrange(
+  gg0 + geom_sf(aes(fill = Pop0to4), map2),
+  gg0 + geom_sf(aes(fill = Pop0to4), map3)
+)
+```
+
+Map of 0-4 years old population, with different color palette.
+
+```{r chProp2}
+gg1 <- gg0 + scale_fill_distiller(
+  palette = "RdBu", 
+  transf = "log", 
+  breaks = sort(c(4 * 10^(0:5), 2 * 10^(0:6), 1 * 10^(0:7))),
+  labels = function(x) format(x, digits = 1, scientific = FALSE)
+)
+ggarrange(
+  gg1 + geom_sf(aes(fill = Pop0to4), map2),
+  gg1 + geom_sf(aes(fill = Pop0to4), map3)
+)
+```
+
+## Health facilities
+
+Getting health facilities data
+
+```{r getHF}
+if(!file.exists("eth_health_facilities.csv"))
+    download.file(
+        url = "https://data.humdata.org/dataset/0eddd032-1b41-4620-8c37-c6ae5e2fee8e/resource/99f6a92f-b850-4b31-9cd5-2e7fa5b8bfd2/download/ethiopian-health-facilities.csv",
+        destfile = "eth_health_facilities.csv"
+    )
+hfac <- read.csv("eth_health_facilities.csv")
+dim(hfac)
+
+head(hfac,2)
+table(hfac$Status)
+```
+
+
+Counting it per administrative level and add to map
+```{r nhf}
+hf.n2 <- as.data.frame(table(hfac$admin2Pcod[hfac$Status=='Approved']))
+hf.n3 <- as.data.frame(table(hfac$admin3Pcod[hfac$Status=='Approved']))
+
+ihf2 <- pmatch(map2$ADM2_PCODE, hf.n2$Var1)
+ihf3 <- pmatch(map3$ADM3_PCODE, hf.n3$Var1)
+
+map2$nHealthFacilities <- hf.n2[ihf2, 2]
+map3$nHealthFacilities <- ifelse(is.na(ihf3), 0, hf.n3[ihf3, 2])
+```
+
+Visualizing population per health facility.
+
+```{r vizHFperPop}
+ggarrange(
+  gg1 + geom_sf(aes(fill = Population / nHealthFacilities), map2),
+  gg1 + geom_sf(aes(fill = Population / nHealthFacilities), map3)
+)
+```
+
+## Malnutrition
+
+Getting the malnutrition (SAM) data
+
+```{r getMalutrition}
+if(!file.exists("sam2022.xlsx"))
+    download.file(
+        url = "https://data.humdata.org/dataset/05f59abe-7c04-4d00-992b-90aee45d403b/resource/410db049-4f14-4858-8419-f0074fe4f850/download/sam-admission-jan-to-october-2022.xlsx", 
+        destfile = "sam2022.xlsx"
+    )
+sam1 <- read.xlsx("sam2022.xlsx")
+sam3 <- read.xlsx("sam2022.xlsx", sheet = 2)
+```
+
+Aggregate SAM per administrative level.
+
+```{r aggSAM}
+sam.a2 <- aggregate(
+    x = sam3[, 6:16], ## the actual data columns
+    by = list(admin2 = sam3$admin2Pcode),
+    FUN = sum, na.rm = TRUE)
+
+sam.a3 <- aggregate(
+    x = sam3[, 6:16],
+    by = list(admin3 = sam3$admin3Pcode),
+    FUN = sum, na.rm = TRUE)
+```
+
+Add the SAM data to the level 2 administrative map.
+
+```{r addSAM2}
+isam2 <- pmatch(map2$ADM2_PCODE, sam.a2$admin2)
+
+map2$SAM01 <- ifelse(is.na(isam2), 0, sam.a2[isam2, 2])
+map2$SAM02 <- ifelse(is.na(isam2), 0, sam.a2[isam2, 3])
+map2$SAM03 <- ifelse(is.na(isam2), 0, sam.a2[isam2, 4])
+map2$SAM04 <- ifelse(is.na(isam2), 0, sam.a2[isam2, 5])
+map2$SAM05 <- ifelse(is.na(isam2), 0, sam.a2[isam2, 6])
+map2$SAM06 <- ifelse(is.na(isam2), 0, sam.a2[isam2, 7])
+map2$SAM07 <- ifelse(is.na(isam2), 0, sam.a2[isam2, 8])
+map2$SAM08 <- ifelse(is.na(isam2), 0, sam.a2[isam2, 9])
+map2$SAM09 <- ifelse(is.na(isam2), 0, sam.a2[isam2, 10])
+map2$SAM10 <- ifelse(is.na(isam2), 0, sam.a2[isam2, 11])
+map2$SAM <- ifelse(is.na(isam2), 0, sam.a2[isam2, 12])
+```
+
+Add the SAM data to the level 3 administrative map.
+
+```{r addSAM3}
+isam3 <- pmatch(map3$ADM3_PCODE, sam.a3$admin3)
+
+map3$SAM01 <- ifelse(is.na(isam3), 0, sam.a3[isam3, 2])
+map3$SAM02 <- ifelse(is.na(isam3), 0, sam.a3[isam3, 3])
+map3$SAM03 <- ifelse(is.na(isam3), 0, sam.a3[isam3, 4])
+map3$SAM04 <- ifelse(is.na(isam3), 0, sam.a3[isam3, 5])
+map3$SAM05 <- ifelse(is.na(isam3), 0, sam.a3[isam3, 6])
+map3$SAM06 <- ifelse(is.na(isam3), 0, sam.a3[isam3, 7])
+map3$SAM07 <- ifelse(is.na(isam3), 0, sam.a3[isam3, 8])
+map3$SAM08 <- ifelse(is.na(isam3), 0, sam.a3[isam3, 9])
+map3$SAM09 <- ifelse(is.na(isam3), 0, sam.a3[isam3, 10])
+map3$SAM10 <- ifelse(is.na(isam3), 0, sam.a3[isam3, 11])
+map3$SAM <- ifelse(is.na(isam3), 0, sam.a3[isam3, 12])
+```
+
+Visualize SAM
+
+```{r visSAM}
+gg2 <- gg0 + scale_fill_distiller(
+  palette = "RdBu", 
+  transf = "log", 
+  breaks = sort(c(3 * 10^(-3:1), 1 * 10^(-3:2))),
+  labels = function(x) format(x, digits = 3, scientific = FALSE)
+)
+ggarrange(
+    gg2 +  geom_sf(aes(fill = SAM / Pop0to4), map2),
+    gg2 +  geom_sf(aes(fill = SAM / Pop0to4), map3)
+)
+```
+
+A time series plot on map
+
+```{r tsMap}
+par(mfrow = c(1, 1), mar = c(0, 0, 0, 0))
+plot(as(map2, 'Spatial'))
+stlines(t(st_drop_geometry(map2[, 18+1:10])), 
+        as(map2, "Spatial"), lwd = 3)
+```
+
+# Save
+
+Save the map with the added data to use later
+
+```{r saveMaps}
+st_write(map2, "map2EthiopiaData.shp")
+st_write(map3, "map3EthiopiaData.shp")
+```
+
