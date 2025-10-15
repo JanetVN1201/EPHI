@@ -276,7 +276,9 @@ stlines(t(st_drop_geometry(map2[, 18+1:10])),
 Save the map with the added data to use later
 
 ```{r saveMaps}
-st_write(map2, "map2EthiopiaData.shp")
-st_write(map3, "map3EthiopiaData.shp")
+if(!file.exists("map2EthiopiaData.shp"))
+  st_write(map2, "map2EthiopiaData.shp")
+if(!file.exists("map3EthiopiaData.shp"))
+  st_write(map3, "map3EthiopiaData.shp")
 ```
 
