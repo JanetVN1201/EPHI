@@ -5,7 +5,7 @@ library(ggpubr)
 library(INLA)
 
 getwd() ## the current working directory
-setwd("put the folder where map2EthiopiaData is") ## change the working directory
+setwd("~/github/EPHI/Day\ 3") ## change the working directory
 
 ## read the shapefile (map + data)
 map2 <- st_read("map2EthiopiaData.shp")
