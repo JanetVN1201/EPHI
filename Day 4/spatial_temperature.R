@@ -4,22 +4,33 @@ library(fmesher)
 library(INLA)
 library(ggplot2)
 
+setwd("/home/eliask/github/EPHI/Day\ 4")
+
 ### https://epsg.io/20138
 crsEthiopia <- st_crs(
     "+proj=utm +zone=38 +a=6378249.145 +rf=293.465 +towgs84=-165,-11,206,0,0,0,0 +units=km +no_defs +type=crs")
 
+worldMapll <- ne_countries(scale = "medium", returnclass = "sf")
+
+plot(worldMapll[,"sov_a3"])
+
 worldMap <- st_transform(
-    ne_countries(scale = "medium", returnclass = "sf"),
+    worldMapll,
     crsEthiopia)
 
-map2 <- st_read("map2EthiopiaData.shp")
+plot(worldMap[,"sov_a3"])
+
+map2 <- st_read("../Day\ 3/map2EthiopiaData.shp")
 map2km <- st_transform(map2, crsEthiopia)
 
 tavg <- read.csv("tavg.csv")
 
-head(tavg)
+format(as.Date("2025/07/15"), "%V")
+
+head(tavg, 2)
 
 summary(lm(X29 ~ elevation, data = tavg))
+
 summary(lm(X29 ~ I(elevation/1000), data = tavg))
 
 inla(X29 ~ I(elevation/1000), data = tavg)$summary.fixed
@@ -31,6 +42,9 @@ Tavg <- st_transform(
         crs = st_crs(map2)),
     crsEthiopia
 )
+
+st_bbox(map2)
+st_bbox(map2km)
 
 bb <- st_bbox(map2km)
 bb
@@ -87,6 +101,8 @@ Amap <- inla.spde.make.A(
     loc = st_coordinates(Tavg)
 )
 
+dim(Amap)
+
 smodel <- X29 ~ I(elevation/1000) +
     f(spatial, model = spdeModel, A.local = Amap)
 
@@ -94,10 +110,15 @@ dataf <- data.frame(
     tavg[c("X29", "elevation")], spatial = NA
 )
 
+head(dataf)
+
 sfit <- inla(
     formula = smodel,
     data = dataf
 )
+sfit$cpu.used
+
+head(sfit$summary.fitted.values, 2)
 
 sfit$summary.fixed
 
@@ -112,7 +133,7 @@ projGrid <- inla.mesh.projector(
     mesh = mesh,
     xlim = c(-850, 850),
     ylim = c(350, 1700),
-    dims = c(170, 205)
+    dims = c(170, 205) * 2
 )
 
 str(projGrid)
@@ -172,6 +193,8 @@ ij <- list(
 )
 
 etopoll <- sapply(1:nrow(glocs), function(i) ETOPO2[ij$i[i], ij$j[i]])
+summary(etopoll)
+
 etopoll[igrid.out] <- NA
 
 summary(etopoll)
@@ -195,3 +218,68 @@ image.plot(
 )
 plot(st_geometry(map2km), add = TRUE)
 plot(st_geometry(worldMap), add = TRUE)
+
+## make a prediction dataset
+preddf <- data.frame(
+  X29 = NA, 
+  elevation = sapply(1:nrow(glocs), function(i) ETOPO2[ij$i[i], ij$j[i]]),
+  spatial = NA
+)
+
+dim(projGrid$proj$A)
+
+smodel_pred <- X29 ~ I(elevation/1000) +
+  f(spatial, model = spdeModel, A.local = rbind(Amap, projGrid$proj$A))
+
+sfit$mode$theta
+
+sfit.prd <- inla(
+  formula = smodel_pred,
+  data = rbind(dataf, preddf), 
+  control.mode = list(theta = sfit$mode$theta, restart = FALSE)
+)
+
+n.data <- nrow(dataf)
+n.data
+
+dim(sfit.prd$summary.fitted.values)
+
+i.pred <- n.data + 1:nrow(preddf)
+range(i.pred)
+
+head(sfit.prd$summary.fitted.values[i.pred, ])
+
+length(projGrid$x)
+
+pred.grid <- matrix(
+  sfit.prd$summary.fitted.values$mean[i.pred], 
+  length(projGrid$x)
+)
+pred.grid[igrid.out] <- NA
+
+par(mfrow = c(1,1), mar = c(0,0,0,0))
+image.plot(
+  x = projGrid$x,
+  y = projGrid$y,
+  pred.grid,
+  asp = 1
+)
+plot(st_geometry(map2km), add = TRUE)
+plot(st_geometry(worldMap), add = TRUE)
+
+sd.pred.grid <- matrix(
+  sfit.prd$summary.fitted.values$sd[i.pred], 
+  length(projGrid$x)
+)
+sd.pred.grid[igrid.out] <- NA
+
+par(mfrow = c(1,1), mar = c(0,0,0,0))
+image.plot(
+  x = projGrid$x,
+  y = projGrid$y,
+  sd.pred.grid,
+  asp = 1
+)
+plot(st_geometry(map2km), add = TRUE)
+plot(st_geometry(worldMap), add = TRUE)
+points(st_geometry(Tavg), pch = 8)
