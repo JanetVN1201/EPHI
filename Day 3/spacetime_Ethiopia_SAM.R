@@ -5,7 +5,7 @@ library(ggpubr)
 library(INLA)
 
 getwd() ## the current working directory
-setwd("where is the map2Ethiopia shapefile") ## change the working directory
+setwd("put the folder where map2EthiopiaData is") ## change the working directory
 
 ## read the shapefile (map + data)
 map2 <- st_read("map2EthiopiaData.shp")
@@ -98,6 +98,7 @@ fit0$summary.fixed
 
 exp(fit0$summary.fixed[2, c(1,3,5)])
 
+par(mar = c(4,4,1,1))
 plot(inla.smarginal(fit0$marginals.fixed$hf), type = "l", bty = 'n')
 abline(v = 0)
 
@@ -124,6 +125,8 @@ abline(v = 0)
 
 fit1$summary.hyperpar
 
+plot.ts(fit1$summary.random$t$mean)
+
 ## spacetime
 pcar1 <- list(theta = list(prior = 'pc.cor1', param = c(0.5, 0.7)))
 m.st <- y ~ hf +
@@ -138,6 +141,7 @@ fit.st <- inla(
 
 fit.st$summary.fixed
 
+par(mar = c(4,4,1,1))
 plot(inla.smarginal(fit.st$marginals.fixed$hf), type = "l", bty = 'n')
 lines(inla.smarginal(fit1$marginals.fixed$hf), lwd = 2, lty = 2)
 lines(inla.smarginal(fit0$marginals.fixed$hf), lwd = 2, lty = 3)
@@ -145,7 +149,42 @@ abline(v = 0)
 
 fit.st$summary.hyperpar
 
-strfit <- matrix(fit.st$summary.random$i$mean, n)
+##
+m.st2 <- y ~ hf +
+##  f(t, model = 'rw1', scale.model = TRUE, hyper = list(prec = ppc)) +
+  f(i, model = 'besagproper', graph = 'nb2', hyper = list(prec = ppc)) +
+  f(i2, model = 'besagproper', graph = 'nb2', hyper = list(prec = ppc), 
+    group = t2, control.group = list(model = 'ar1', hyper = pcar1))
+
+longdf$i2 <- longdf$i
+longdf$t2 <- longdf$t
+
+fit.st2 <- inla(
+  formula = m.st2,
+  data = longdf,
+  family = 'poisson', E = E
+)
+
+fit.st2$cpu.used
+
+fit.st2$summary.fixed
+
+plot(inla.smarginal(fit.st2$marginals.fixed$hf), type = "l", bty = 'n')
+lines(inla.smarginal(fit.st$marginals.fixed$hf), lwd = 2, lty = 2, col = 'red')
+lines(inla.smarginal(fit1$marginals.fixed$hf), lwd = 2, lty = 2)
+lines(inla.smarginal(fit0$marginals.fixed$hf), lwd = 2, lty = 3)
+abline(v = 0)
+
+fit.st2$summary.hyperpar
+
+map2$spatial_common <- fit.st2$summary.random$i$mean
+
+plot(map2[,"spatial_common"])
+
+#fit.st2$summary.random$t
+#plot(fit.st2$summary.random$t$mean)
+
+strfit <- matrix(fit.st2$summary.random$i2$mean, n)
 
 library(sp)
 par(mfrow = c(1, 1), mar = c(0, 0, 0, 0))
@@ -173,9 +212,12 @@ ggarrange(
 cv0 <- inla.group.cv(fit0, num.level.sets = 5)
 cv1 <- inla.group.cv(fit1, num.level.sets = 5)
 cv.st <- inla.group.cv(fit.st, num.level.sets = 5)
+cv.st2 <- inla.group.cv(fit.st2, num.level.sets = 5)
 
 str(cv0,1)
 cv0$groups[1:2]
 
-c(fit0$mlik[[1]], fit1$mlik[[1]], fit.st$mlik[[1]])
-c(sum(cv0$cv), sum(cv1$cv), sum(cv.st$cv))
+longdf[cv0$groups[[1]]$idx,]
+
+c(fit0$mlik[[1]], fit1$mlik[[1]], fit.st$mlik[[1]], fit.st2$mlik[[1]])
+c(sum(cv0$cv), sum(cv1$cv), sum(cv.st$cv), sum(cv.st2$cv))
