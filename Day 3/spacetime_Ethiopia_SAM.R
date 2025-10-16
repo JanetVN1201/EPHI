@@ -4,8 +4,16 @@ library(ggplot2)
 library(ggpubr)
 library(INLA)
 
+getwd() ## the current working directory
+setwd("where is the map2Ethiopia shapefile") ## change the working directory
+
+## read the shapefile (map + data)
 map2 <- st_read("map2EthiopiaData.shp")
 
+## easy map plot
+plot(map2[,"SAM"])
+
+## ggplot setup to map
 gg0 <- ggplot() + theme_minimal()
 gg2 <- gg0 + scale_fill_distiller(
   palette = "RdBu", 
@@ -14,6 +22,10 @@ gg2 <- gg0 + scale_fill_distiller(
   labels = function(x) format(x, digits = 3, scientific = FALSE)
   )
 
+## visualize SAM/Pop0to4 map (sum from January to October)
+gg2 +  geom_sf(aes(fill = SAM / Pop0to4), map2)
+
+## visualize SAM map at each month
 ggarrange(
     gg2 +  geom_sf(aes(fill = SAM01 / Pop0to4), map2),
     gg2 +  geom_sf(aes(fill = SAM02 / Pop0to4), map2),
@@ -29,6 +41,8 @@ ggarrange(
 )
 
 summary(ppHealthFac <- map2$Popul / map2$nHlthFc)
+
+gg2 + geom_sf(aes(fill = ppHealthFac), data = map2)
 
 rate <- sum(map2$SAM) / sum(map2$Pop0to4)
 rate
@@ -77,9 +91,8 @@ m0 <- y ~ hf +
 fit0 <- inla(
     formula = m0,
     data = longdf,
-    family = 'poisson',
-    E = E
-)
+    family = 'poisson', E = E
+    )
 
 fit0$summary.fixed
 
@@ -100,8 +113,7 @@ m1 <- y ~ hf +
 fit1 <- inla(
     formula = m1,
     data = longdf,
-    family = 'poisson',
-    E = E
+    family = 'poisson', E = E
 )
 
 fit1$summary.fixed
@@ -121,8 +133,7 @@ m.st <- y ~ hf +
 fit.st <- inla(
     formula = m.st,
     data = longdf,
-    family = 'poisson',
-    E = E
+    family = 'poisson', E = E
 )
 
 fit.st$summary.fixed
